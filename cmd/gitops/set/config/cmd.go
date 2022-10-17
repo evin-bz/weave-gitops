@@ -10,9 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/weave-gitops/cmd/gitops/cmderrors"
-	"github.com/weaveworks/weave-gitops/cmd/gitops/config"
+	cfg "github.com/weaveworks/weave-gitops/cmd/gitops/config"
 	clilogger "github.com/weaveworks/weave-gitops/cmd/gitops/logger"
-	gitopsConfig "github.com/weaveworks/weave-gitops/pkg/config"
+	"github.com/weaveworks/weave-gitops/pkg/config"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 
 var analyticsValue bool
 
-func ConfigCommand(opts *config.Options) *cobra.Command {
+func ConfigCommand(opts *cfg.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Set the CLI configuration for Weave GitOps",
@@ -59,7 +59,7 @@ func setConfigCommandPreRunE(endpoint *string) func(*cobra.Command, []string) er
 	}
 }
 
-func setConfigCommandRunE(opts *config.Options) func(*cobra.Command, []string) error {
+func setConfigCommandRunE(opts *cfg.Options) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		var err error
 
@@ -69,22 +69,22 @@ func setConfigCommandRunE(opts *config.Options) func(*cobra.Command, []string) e
 			log.Warningf("This will only turn off analytics for the GitOps CLI. Please refer to the documentation to turn off the analytics in the GitOps Dashboard.")
 		}
 
-		cfg, err := gitopsConfig.GetConfig(true)
+		gitopsConfig, err := config.GetConfig(true)
 		if err != nil {
 			return err
 		}
 
-		cfg.Analytics = analyticsValue
+		gitopsConfig.Analytics = analyticsValue
 
-		if cfg.UserID == "" {
+		if gitopsConfig.UserID == "" {
 			seed := time.Now().UnixNano()
 
-			cfg.UserID = gitopsConfig.GenerateUserID(10, seed)
+			gitopsConfig.UserID = config.GenerateUserID(10, seed)
 		}
 
 		log.Actionf("Saving GitOps CLI config ...")
 
-		if err = gitopsConfig.SaveConfig(cfg); err != nil {
+		if err = config.SaveConfig(gitopsConfig); err != nil {
 			log.Failuref("Error saving GitOps CLI config")
 			return err
 		}

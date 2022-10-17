@@ -18,6 +18,7 @@ import (
 	"github.com/weaveworks/weave-gitops/cmd/gitops/get"
 	"github.com/weaveworks/weave-gitops/cmd/gitops/set"
 	"github.com/weaveworks/weave-gitops/cmd/gitops/version"
+	"github.com/weaveworks/weave-gitops/pkg/analytics"
 	"github.com/weaveworks/weave-gitops/pkg/config"
 	"github.com/weaveworks/weave-gitops/pkg/kube"
 	"github.com/weaveworks/weave-gitops/pkg/utils"
@@ -89,7 +90,7 @@ func RootCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			_, err = config.GetConfig(false)
+			gitopsConfig, err := config.GetConfig(false)
 			if err != nil {
 				prompt := promptui.Prompt{
 					Label:     "Creating config file... Would you like to turn on analytics to help us improve our product",
@@ -100,7 +101,7 @@ func RootCmd() *cobra.Command {
 				// Answering "n" causes err to not be nil. Hitting enter without typing
 				// does not return the default.
 				_, err := prompt.Run()
-				gitopsConfig := &config.GitopsCLIConfig{}
+				gitopsConfig = &config.GitopsCLIConfig{}
 				seed := time.Now().UnixNano()
 				gitopsConfig.UserID = config.GenerateUserID(10, seed)
 				gitopsConfig.Analytics = false
@@ -111,6 +112,10 @@ func RootCmd() *cobra.Command {
 					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 					os.Exit(1)
 				}
+			}
+
+			if gitopsConfig.Analytics {
+				_ = analytics.TrackCommand(cmd, gitopsConfig.UserID)
 			}
 		},
 	}

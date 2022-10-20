@@ -3,12 +3,17 @@ package install
 import (
 	"context"
 	"fmt"
-	v1 "k8s.io/api/core/v1"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/weaveworks/weave-gitops/cmd/gitops/version"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,10 +36,17 @@ func makeVClusterHelmRepository(namespace string) (*sourcev1.HelmRepository, err
 }
 
 func makeVClusterHelmRelease(name string, namespace string) (*helmv2.HelmRelease, error) {
+	args := append([]string{filepath.Base(os.Args[0])}, os.Args[1:]...)
+	command := strings.Join(args, " ")
+
 	helmRelease := &helmv2.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"app":                       "vcluster",
+				"app.kubernetes.io/part-of": "gitops-run",
+			},
 		},
 		Spec: helmv2.HelmReleaseSpec{
 			Chart: helmv2.HelmChartTemplate{
@@ -55,6 +67,17 @@ func makeVClusterHelmRelease(name string, namespace string) (*helmv2.HelmRelease
 			Upgrade: &helmv2.Upgrade{
 				CRDs: helmv2.CreateReplace,
 			},
+			Values: &apiextensions.JSON{Raw: []byte(fmt.Sprintf(`
+{
+  "labels": {
+    "app.kubernetes.io/part-of": "gitops-run"
+  },
+  "annotations": {
+    "run.weave.works/cli-version": "%s",
+    "run.weave.works/port-forward": "%s",
+	"run.weave.works/command": "%s"
+  }
+}`, version.Version, "" /*portForwards*/, command))},
 		},
 	}
 
